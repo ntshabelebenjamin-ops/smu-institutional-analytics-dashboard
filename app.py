@@ -290,6 +290,80 @@ fig_cluster_count = px.bar(
 st.plotly_chart(fig_cluster_count, use_container_width=True)
 
 # =========================================================
+# DISTANCE FROM CLUSTER CENTROIDS
+# =========================================================
+
+st.header("Distance from Cluster Centroids")
+
+cluster_distances = kmeans.transform(X_scaled)
+
+distance_df = pd.DataFrame(
+    cluster_distances,
+    columns=[
+        "Distance_to_Cluster_0",
+        "Distance_to_Cluster_1",
+        "Distance_to_Cluster_2"
+    ]
+)
+
+distance_df["Assigned_Cluster"] = df["Cluster_Label"]
+
+distance_df["Nearest_Cluster_Distance"] = (
+    distance_df[
+        [
+            "Distance_to_Cluster_0",
+            "Distance_to_Cluster_1",
+            "Distance_to_Cluster_2"
+        ]
+    ]
+    .min(axis=1)
+)
+
+fig_distance = px.histogram(
+    distance_df,
+    x="Nearest_Cluster_Distance",
+    color="Assigned_Cluster",
+    nbins=30,
+    title="Distance from Assigned Cluster Centroids"
+)
+
+st.plotly_chart(fig_distance, use_container_width=True)
+
+# =========================================================
+# CLUSTER CENTROIDS
+# =========================================================
+
+st.header("Cluster Centroid Profiles")
+
+centroids = pd.DataFrame(
+    kmeans.cluster_centers_,
+    columns=features
+)
+
+centroids["Cluster"] = [
+    "Cluster 0",
+    "Cluster 1",
+    "Cluster 2"
+]
+
+centroids_melted = centroids.melt(
+    id_vars="Cluster",
+    var_name="Feature",
+    value_name="Centroid_Value"
+)
+
+fig_centroids = px.line(
+    centroids_melted,
+    x="Feature",
+    y="Centroid_Value",
+    color="Cluster",
+    markers=True,
+    title="Cluster Centroid Profiles"
+)
+
+st.plotly_chart(fig_centroids, use_container_width=True)
+
+# =========================================================
 # PREDICTIVE ANALYTICS
 # =========================================================
 
@@ -411,15 +485,6 @@ st.dataframe(cm_df)
 
 st.header("Classification Analytics: Risk Category Prediction")
 
-st.markdown("""
-This section predicts:
-- High Risk students
-- Moderate Risk students
-- Low Risk students
-
-using supervised machine learning classification methods.
-""")
-
 classification_features = [
     "Maths_%",
     "Physical_Sciences_%",
@@ -520,6 +585,33 @@ cm_class_df = pd.DataFrame(
 st.dataframe(cm_class_df)
 
 # =========================================================
+# CLASSIFICATION VISUALISATION
+# =========================================================
+
+st.header("Classification Visualisation")
+
+pca_class = PCA(n_components=2)
+
+pca_class_components = pca_class.fit_transform(X_class_scaled)
+
+pca_class_df = pd.DataFrame({
+    "PCA1": pca_class_components[:, 0],
+    "PCA2": pca_class_components[:, 1],
+    "Risk_Category": y_class
+})
+
+fig_classification = px.scatter(
+    pca_class_df,
+    x="PCA1",
+    y="PCA2",
+    color="Risk_Category",
+    title="Risk Category Classification Groups",
+    opacity=0.8
+)
+
+st.plotly_chart(fig_classification, use_container_width=True)
+
+# =========================================================
 # CLASSIFICATION FEATURE IMPORTANCE
 # =========================================================
 
@@ -544,6 +636,30 @@ fig_class_importance = px.bar(
 )
 
 st.plotly_chart(fig_class_importance, use_container_width=True)
+
+# =========================================================
+# CLASSIFICATION PROBABILITIES
+# =========================================================
+
+st.header("Classification Probability Confidence")
+
+probabilities = rf_classifier.predict_proba(X_test_class)
+
+prob_df = pd.DataFrame(
+    probabilities,
+    columns=rf_classifier.classes_
+)
+
+prob_df["Predicted_Class"] = y_pred_class
+
+fig_prob = px.box(
+    prob_df,
+    y=prob_df.columns[0],
+    color="Predicted_Class",
+    title="Prediction Confidence Distribution"
+)
+
+st.plotly_chart(fig_prob, use_container_width=True)
 
 # =========================================================
 # GOVERNANCE SECTION
