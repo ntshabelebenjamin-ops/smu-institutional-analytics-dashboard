@@ -10,9 +10,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score,
-    classification_report,
-    confusion_matrix
+    confusion_matrix,
+    classification_report
 )
+
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 
 # =========================================================
 # PAGE CONFIGURATION
@@ -34,10 +37,11 @@ st.markdown("""
 This dashboard demonstrates:
 - Institutional analytics
 - Executive reporting
-- Strategic risk identification
-- Data governance awareness
-- Predictive analytics capability
+- Predictive analytics
+- K-Means clustering
 - Student success intelligence
+- Strategic risk identification
+- Data governance principles
 """)
 
 # =========================================================
@@ -46,194 +50,254 @@ This dashboard demonstrates:
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("SMU_FTEN_Prepared_Predictive_Dataset.csv")
+    df = pd.read_csv("SMU_FTEN_1245_Predictive_Dataset.csv")
     return df
 
 df = load_data()
 
 # =========================================================
-# SIDEBAR FILTERS
+# DATA PREPARATION
 # =========================================================
 
-st.sidebar.header("Dashboard Filters")
+st.header("Data Preparation & Institutional Intelligence")
 
-selected_quintile = st.sidebar.multiselect(
-    "School Quintile",
-    options=sorted(df["School_Quintile"].unique()),
-    default=sorted(df["School_Quintile"].unique())
-)
+st.subheader("Dataset Overview")
 
-selected_risk = st.sidebar.multiselect(
-    "Risk Category",
-    options=df["Risk_Category"].unique(),
-    default=df["Risk_Category"].unique()
-)
+col1, col2, col3 = st.columns(3)
 
-filtered_df = df[
-    (df["School_Quintile"].isin(selected_quintile)) &
-    (df["Risk_Category"].isin(selected_risk))
+with col1:
+    st.metric("Total Students", len(df))
+
+with col2:
+    st.metric("Variables", len(df.columns))
+
+with col3:
+    st.metric(
+        "Average Success Rate",
+        f"{df['Success_Rate_%'].mean():.1f}%"
+    )
+
+st.write("First 5 Records")
+st.dataframe(df.head())
+
+# =========================================================
+# CHECK MISSING VALUES
+# =========================================================
+
+st.subheader("Missing Values Check")
+
+missing_df = pd.DataFrame({
+    "Variable": df.columns,
+    "Missing Values": df.isnull().sum().values
+})
+
+st.dataframe(missing_df)
+
+# =========================================================
+# FEATURE SELECTION
+# =========================================================
+
+features = [
+    "Maths_%",
+    "Physical_Sciences_%",
+    "Life_Sciences_%",
+    "English_%",
+    "School_Quintile",
+    "Average_School_Score",
+    "First_Semester_Average_%",
+    "Second_Semester_Average_%",
+    "STEM_Average",
+    "Modules_Enrolled",
+    "Modules_Passed",
+    "Success_Rate_%"
 ]
 
+X = df[features]
+
 # =========================================================
-# EXECUTIVE KPI SECTION
+# STANDARDISE DATA
+# =========================================================
+
+scaler = StandardScaler()
+
+X_scaled = scaler.fit_transform(X)
+
+st.success("""
+Data preparation completed:
+- Feature selection
+- Data scaling
+- Missing value validation
+- Machine learning preparation
+""")
+
+# =========================================================
+# EXECUTIVE KPIs
 # =========================================================
 
 st.header("Executive Institutional KPIs")
 
-col1, col2, col3, col4 = st.columns(4)
+col4, col5, col6, col7 = st.columns(4)
 
-with col1:
+with col4:
     st.metric(
-        "Total Students",
-        len(filtered_df)
+        "Average STEM Score",
+        f"{df['STEM_Average'].mean():.1f}"
     )
 
-with col2:
-    st.metric(
-        "Average Success Rate",
-        f"{filtered_df['Success_Rate_%'].mean():.1f}%"
-    )
-
-with col3:
-    at_risk = filtered_df["Dropout_Risk_Flag"].mean() * 100
+with col5:
+    at_risk = df["Dropout_Risk_Flag"].mean() * 100
 
     st.metric(
         "At-Risk Students",
         f"{at_risk:.1f}%"
     )
 
-with col4:
+with col6:
     st.metric(
-        "Average STEM Score",
-        f"{filtered_df['STEM_Average'].mean():.1f}"
+        "Average Modules Passed",
+        f"{df['Modules_Passed'].mean():.1f}"
+    )
+
+with col7:
+    st.metric(
+        "Average Quintile",
+        f"{df['School_Quintile'].mean():.1f}"
     )
 
 # =========================================================
 # STUDENT SUCCESS DISTRIBUTION
 # =========================================================
 
-st.header("Student Success Analytics")
+st.header("Institutional Performance Analytics")
 
 fig_success = px.histogram(
-    filtered_df,
+    df,
     x="Success_Rate_%",
     color="Risk_Category",
-    title="Distribution of Student Success Rates",
-    nbins=20
+    title="Student Success Rate Distribution",
+    nbins=25
 )
 
 st.plotly_chart(fig_success, use_container_width=True)
 
 # =========================================================
-# QUINTILE ANALYTICS
+# K-MEANS CLUSTERING
 # =========================================================
 
-fig_quintile = px.box(
-    filtered_df,
-    x="School_Quintile",
-    y="Success_Rate_%",
-    color="Risk_Category",
-    title="Success Rate by School Quintile"
-)
-
-st.plotly_chart(fig_quintile, use_container_width=True)
-
-# =========================================================
-# SOCIO-ECONOMIC ANALYTICS
-# =========================================================
-
-st.header("Socio-Economic Performance Analytics")
-
-socio_df = (
-    filtered_df
-    .groupby("Socio_Economic_Background")["Success_Rate_%"]
-    .mean()
-    .reset_index()
-)
-
-fig_socio = px.bar(
-    socio_df,
-    x="Socio_Economic_Background",
-    y="Success_Rate_%",
-    title="Average Success Rate by Socio-Economic Background"
-)
-
-st.plotly_chart(fig_socio, use_container_width=True)
-
-# =========================================================
-# LANGUAGE ANALYTICS
-# =========================================================
-
-st.header("Home Language Analytics")
-
-lang_df = (
-    filtered_df
-    .groupby("Home_Language")["Success_Rate_%"]
-    .mean()
-    .reset_index()
-)
-
-fig_lang = px.bar(
-    lang_df,
-    x="Home_Language",
-    y="Success_Rate_%",
-    title="Average Success Rate by Home Language"
-)
-
-st.plotly_chart(fig_lang, use_container_width=True)
-
-# =========================================================
-# STRATEGIC RISK SECTION
-# =========================================================
-
-st.header("Strategic and Funding Risk Indicators")
-
-high_risk_students = filtered_df[
-    filtered_df["Risk_Category"] == "High Risk"
-]
-
-moderate_risk_students = filtered_df[
-    filtered_df["Risk_Category"] == "Moderate Risk"
-]
-
-st.warning(f"High-Risk Students Identified: {len(high_risk_students)}")
-st.info(f"Moderate-Risk Students Identified: {len(moderate_risk_students)}")
+st.header("K-Means Clustering: Student Risk Segmentation")
 
 st.markdown("""
-### Institutional Strategic Risk Interpretation
-
-Potential risks identified include:
-- Weak throughput efficiency
-- Student dropout risks
-- Potential DHET funding pressure
-- Socio-economic inequality effects
-- Strategic intervention requirements
-- Institutional sustainability concerns
+The clustering model identifies hidden student performance groups based on:
+- academic preparedness;
+- semester performance;
+- module success;
+- and institutional progression indicators.
 """)
 
 # =========================================================
-# DATA GOVERNANCE SECTION
+# KMEANS MODEL
 # =========================================================
 
-st.header("Data Governance & Ethical Analytics")
+kmeans = KMeans(
+    n_clusters=3,
+    random_state=42,
+    n_init=10
+)
 
-st.success("""
-This dashboard demonstrates:
-- Evidence-based decision-making
-- Institutional transparency
-- Ethical AI awareness
-- Responsible analytics
-- POPIA-aligned governance
-- Institutional intelligence maturity
-""")
+df["Cluster"] = kmeans.fit_predict(X_scaled)
+
+# =========================================================
+# CLUSTER INTERPRETATION
+# =========================================================
+
+cluster_summary = (
+    df.groupby("Cluster")[
+        [
+            "Success_Rate_%",
+            "Average_School_Score",
+            "First_Semester_Average_%",
+            "Second_Semester_Average_%"
+        ]
+    ]
+    .mean()
+    .round(1)
+)
+
+st.subheader("Cluster Summary")
+
+st.dataframe(cluster_summary)
+
+# =========================================================
+# LABEL CLUSTERS
+# =========================================================
+
+cluster_risk_map = {
+    cluster_summary["Success_Rate_%"].idxmin(): "High Risk Cluster",
+    cluster_summary["Success_Rate_%"].idxmax(): "Low Risk Cluster"
+}
+
+remaining_cluster = list(
+    set(cluster_summary.index) -
+    set(cluster_risk_map.keys())
+)[0]
+
+cluster_risk_map[remaining_cluster] = "Moderate Risk Cluster"
+
+df["Cluster_Label"] = df["Cluster"].map(cluster_risk_map)
+
+# =========================================================
+# PCA VISUALISATION
+# =========================================================
+
+pca = PCA(n_components=2)
+
+pca_components = pca.fit_transform(X_scaled)
+
+pca_df = pd.DataFrame({
+    "PCA1": pca_components[:, 0],
+    "PCA2": pca_components[:, 1],
+    "Cluster": df["Cluster_Label"]
+})
+
+fig_cluster = px.scatter(
+    pca_df,
+    x="PCA1",
+    y="PCA2",
+    color="Cluster",
+    title="K-Means Student Risk Clusters"
+)
+
+st.plotly_chart(fig_cluster, use_container_width=True)
+
+# =========================================================
+# CLUSTER COUNTS
+# =========================================================
+
+cluster_counts = (
+    df["Cluster_Label"]
+    .value_counts()
+    .reset_index()
+)
+
+cluster_counts.columns = ["Cluster", "Students"]
+
+fig_cluster_count = px.bar(
+    cluster_counts,
+    x="Cluster",
+    y="Students",
+    color="Cluster",
+    title="Student Distribution Across Risk Clusters"
+)
+
+st.plotly_chart(fig_cluster_count, use_container_width=True)
 
 # =========================================================
 # PREDICTIVE ANALYTICS
 # =========================================================
 
-st.header("Predictive Analytics: Student Dropout Risk")
+st.header("Predictive Analytics: Dropout Risk Prediction")
 
-features = [
+predictors = [
     "Maths_%",
     "Physical_Sciences_%",
     "Life_Sciences_%",
@@ -247,23 +311,21 @@ features = [
 
 target = "Dropout_Risk_Flag"
 
-X = df[features]
+X_pred = df[predictors]
 y = df[target]
 
 # =========================================================
 # SCALE DATA
 # =========================================================
 
-scaler = StandardScaler()
-
-X_scaled = scaler.fit_transform(X)
+X_pred_scaled = scaler.fit_transform(X_pred)
 
 # =========================================================
-# TRAIN TEST SPLIT
+# SPLIT DATA
 # =========================================================
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled,
+    X_pred_scaled,
     y,
     test_size=0.2,
     random_state=42
@@ -301,15 +363,15 @@ rf_accuracy = accuracy_score(y_test, rf_preds)
 
 st.subheader("Predictive Model Performance")
 
-col5, col6 = st.columns(2)
+col8, col9 = st.columns(2)
 
-with col5:
+with col8:
     st.metric(
         "Logistic Regression Accuracy",
         f"{log_accuracy:.2%}"
     )
 
-with col6:
+with col9:
     st.metric(
         "Random Forest Accuracy",
         f"{rf_accuracy:.2%}"
@@ -320,7 +382,7 @@ with col6:
 # =========================================================
 
 importance_df = pd.DataFrame({
-    "Feature": features,
+    "Feature": predictors,
     "Importance": rf_model.feature_importances_
 })
 
@@ -334,7 +396,7 @@ fig_importance = px.bar(
     x="Importance",
     y="Feature",
     orientation="h",
-    title="Predictive Feature Importance"
+    title="Feature Importance for Dropout Prediction"
 )
 
 st.plotly_chart(fig_importance, use_container_width=True)
@@ -356,6 +418,23 @@ cm_df = pd.DataFrame(
 st.dataframe(cm_df)
 
 # =========================================================
+# DATA GOVERNANCE
+# =========================================================
+
+st.header("Data Governance & Ethical AI")
+
+st.info("""
+This institutional intelligence dashboard supports:
+- Evidence-based decision-making
+- Institutional transparency
+- Ethical AI awareness
+- POPIA-aligned governance
+- Responsible analytics
+- Predictive institutional intelligence
+- Student success intervention planning
+""")
+
+# =========================================================
 # EXECUTIVE SUMMARY
 # =========================================================
 
@@ -366,22 +445,34 @@ top_feature = importance_df.iloc[0]["Feature"]
 st.markdown(f"""
 ### Key Institutional Findings
 
-- Total Students Analysed: {len(filtered_df)}
-- Average Success Rate: {filtered_df['Success_Rate_%'].mean():.1f}%
-- Students At Risk: {at_risk:.1f}%
-- Strongest Predictor of Risk: {top_feature}
+- Total Students Analysed: {len(df)}
+- Average Success Rate: {df['Success_Rate_%'].mean():.1f}%
+- Students Identified as At Risk: {at_risk:.1f}%
+- Strongest Predictor of Dropout Risk: {top_feature}
+
+### Cluster Analysis Findings
+
+The K-Means clustering identified:
+- High Risk student groups;
+- Moderate Risk student groups;
+- Low Risk student groups.
+
+These clusters support:
+- targeted interventions;
+- early warning systems;
+- and institutional planning.
 
 ### Strategic Institutional Implications
 
 The analytics suggest:
 - first semester performance strongly predicts risk;
 - socio-economic background influences success;
-- early warning systems are strategically important;
-- predictive analytics supports evidence-based intervention planning.
+- predictive analytics improves intervention planning;
+- institutional intelligence supports sustainability.
 
-### Governance Considerations
+### Governance Alignment
 
-The dashboard aligns with:
+This dashboard aligns with:
 - CHE Data Value Chain principles;
 - DHET evidence-based planning;
 - institutional intelligence frameworks;
@@ -389,22 +480,22 @@ The dashboard aligns with:
 """)
 
 # =========================================================
-# RAW DATA SECTION
+# RAW DATA
 # =========================================================
 
 st.header("Institutional Dataset")
 
-st.dataframe(filtered_df)
+st.dataframe(df)
 
 # =========================================================
-# DOWNLOAD OPTION
+# DOWNLOAD DATA
 # =========================================================
 
-csv = filtered_df.to_csv(index=False).encode("utf-8")
+csv = df.to_csv(index=False).encode("utf-8")
 
 st.download_button(
-    label="Download Filtered Dataset",
+    label="Download Institutional Dataset",
     data=csv,
-    file_name="filtered_institutional_analytics.csv",
+    file_name="institutional_analytics_dataset.csv",
     mime="text/csv"
 )
